@@ -1,0 +1,125 @@
+version: "3.9"
+
+services:
+
+  bot:
+    build: projects/sportShopBot
+    env_file:
+      - projects/sportShopBot/.env
+    entrypoint: /main.sh
+    volumes:
+      - ./projects/sportShopBot:/sportShopBot
+    container_name: sportShop_bot
+    network_mode: container:sportShop_openVpn
+    restart: always
+
+  postgres:
+
+    image: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    user: ${POSTGRES_USER}
+    environment:
+      POSTGRES_DB: sportshop_postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mohsen1160417237
+      PGPORT: 5432
+    env_file:
+      - helpers/env/main.env
+    ports:
+      - 5432:5432
+    container_name: sportShop_postgres
+    restart: always
+
+  api:
+
+    build: projects/sportShop
+    entrypoint: /api.sh
+    depends_on:
+      - postgres
+      - rabbitmq
+    env_file:
+      - helpers/env/main.env
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - 8282:8282
+    volumes:
+      - sport_shop_volume:/sportShop
+    container_name: sportShop_api
+    restart: always
+
+  nginx:
+
+    depends_on:
+      - api
+    build: projects/sportShop/docker/nginx
+    volumes:
+      - sport_shop_volume:/sportShop
+      - nginx_log_volume:/var/log/nginx
+      - nginx_conf:/etc/nginx/conf.d/
+      - :/etc/nginx/ssl/:ro
+      #- ./certbot/www:/var/www/certbot/:ro
+    ports:
+      - 80:80
+      - 443:443
+    container_name: sportShop_nginx
+    restart: always
+
+  rabbitmq:
+
+    image: rabbitmq
+    container_name: sportShop_rabbitmq
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - 5672:5672
+      - 15672:15672
+    restart: always
+
+  celery:
+
+    build: projects/sportShop
+    entrypoint: /celery.sh
+    depends_on:
+      - postgres
+    volumes:
+      - sport_shop_volume:/sportShop
+    env_file:
+      - helpers/env/main.env
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    user: sport_shop_user:sport_shop_group
+    container_name: sport_shop_celery
+    network_mode: container:sportShop_openVpn
+    restart: always
+
+  celery-beat:
+
+    build: projects/sportShop
+    entrypoint: /celery-beat.sh
+    depends_on:
+      - postgres
+      - rabbitmq
+    volumes:
+      - sport_shop_volume:/sportShop
+    env_file:
+      - helpers/env/main.env
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    user: sport_shop_user:sport_shop_group
+    container_name: sport_shop_celery_beat
+    restart: always
+
+volumes:
+  postgres_data:
+  sport_shop_volume:
+  nginx_log_volume:
+  nginx_conf:
+  rabbitmq_data:

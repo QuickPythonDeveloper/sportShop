@@ -1,0 +1,13 @@
+/venv/
+projects/sportShopBot/settings/53053/
+projects/sportShopBot/*.xml
+projects/sportShopBot/*.iml
+projects/sportShopBot/downloads/
+
+projects/sportShop/*/__pycache__
+
+projects/sportShop/*/migrations/
+!/projects/sportShop/*/migrations/__init__.py
+
+*.xml
+*.iml
